@@ -4,14 +4,15 @@
 :- retractall(at(_, _)), retractall(i_am_at(_)), retractall(alive(_)), retractall(boogie_bombable(_)),
         retractall(looked_into_hole(_)), 
         retractall(looked_into_bus(_)), 
-        retractall(wants_to_distract_emp(_)),,
-        retractall(employee_is_boogy_bombed(_))
+        retractall(wants_to_distract_emp(_)),
+        retractall(employee_is_boogy_bombed(_)),
         retractall(moners_in_da_bag(_)),
         retractall(boxing_machine_looted(_)),
         retractall(face_off_looted(_)),
         retractall(arcade_looted(_)),
         retractall(whack_a_mole_looted(_)),
-        retractall(over_complicated_boolean_empBombed_and_inCheckout(_)).
+        retractall(over_complicated_boolean_empBombed_and_inCheckout(_)),
+        retractall(employee_is_looted(_)).
 
 /* egg */
 
@@ -48,6 +49,9 @@ wants_to_distract_emp(0).
 
 :- dynamic employee_is_boogy_bombed/1.
 employee_is_boogy_bombed(0).
+
+:- dynamic employee_is_looted/1.
+employee_is_looted(0).
 
 set_looked_into_hole_count(NewCount) :-
         retractall(looked_into_hole(_)),
@@ -103,6 +107,10 @@ set_employee_is_boogy_bombed_true :-
 set_employee_is_boogy_bombed_balled_out :-
         retractall(employee_is_boogy_bombed(_)),
         assert(employee_is_boogy_bombed(2)).
+
+set_employee_is_looted_true :-
+        retractall(employee_is_looted(_)),
+        assert(employee_is_looted(1)).
 
 set_over_complicated_boolean_empBombed_true :-
         over_complicated_boolean_empBombed_and_inCheckout(Bool),
@@ -166,12 +174,15 @@ path(checkout, n, emp_room) :-
         write('Door is locked :('), nl,
         !, fail.
 
+path(emp_room, s, checkout) :-
+        set_over_complicated_boolean_inCheckout_true.
+
 /* These facts tell where the various objects in the game
    are located. */
 
 at(employee, checkout).
 at(boogie_bomb, battle_bus).
-at(emp_room_key, employee_pocket).
+at(emp_room_key, checkout).
 
 /* These facts tell what machines can be seached to find money*/
 /*boxing machine
@@ -182,12 +193,28 @@ is_searchable_game(boxing_machine).
 is_searchable_game(face_off).
 is_searchable_game(arcade).
 is_searchable_game(whack_a_mole).
+is_searchable_emp(employee) :- 
+        employee_is_boogy_bombed(Bool),
+        Bool >= 1.
 
 /* These rules add coins to the players inventory */
 
 search(Game) :-
         is_searchable_game(Game),
         game_searched(Game).
+
+search(Emp) :-
+        is_searchable_emp(Emp),
+        employee_searched(Emp).
+
+employee_searched(employee) :-
+        employee_is_boogy_bombed(Bool),
+        Bool >= 1,
+        employee_is_looted(Count),
+        Count = 0,
+        write('You snagged the employees keys from his belt, now you have access to the employees room.'),
+        take(emp_room_key),
+        set_employee_is_looted_true,!.
 
 
 game_searched(boxing_machine) :-
@@ -415,8 +442,7 @@ stare_into_hole :-
         Count < 3,
         Temp is Count + 1,
         set_looked_into_hole_count(Temp),
-        write("Nothing to see"), nl,
-        write(Temp), nl.
+        write("Nothing to see"),!.
         /*Temp > 3,
         write("black people be like").*/
 
@@ -446,7 +472,7 @@ throwBomb :-
         set_employee_is_boogy_bombed_true,
         set_over_complicated_boolean_empBombed_true,
         write('You boogie bombed the employee, now he is dancing and he cant get in your way anymore!'), nl, 
-        !.
+        retract(at(boogie_bomb, in_hand)),!.
 
 throwBomb :-
         i_am_at(arcade_entrance),
@@ -479,10 +505,9 @@ instructions :-
         write('Available commands are:'), nl,
         write('start.                   -- to start the game.'), nl,
         write('n.  s.  e.  w.  u.  d.   -- to go in that direction.'), nl,
-        write('take(Object).            -- to pick up an object.'), nl,
-        write('drop(Object).            -- to put down an object.'), nl,
-        write('throwBomb.               -- to attack an enemy.'), nl,
+        write('throwBomb.               -- to throw bomb on a certain someone.'), nl,
         write('look.                    -- to look around you again.'), nl,
+        write('search(EMPLOYEE)/search(GAME) -- to loot them.'),nl,
         write('instructions.            -- to see this message again.'), nl,
         write('halt.                    -- to end the game and quit.'), nl,
         nl.
@@ -497,14 +522,11 @@ start :-
 /* These rules describe the various rooms.  Depending on
    circumstances, a room may have more than one description. */
 
-describe(meadow) :-
-        at(ruby, in_hand),
-        write('Congratulations!!  You have recovered the ruby'), nl,
-        write('and won the game.'), nl,
-        finish, !.
-
 describe(bedroom) :-
-        write('You are in your bedroom. Nothing interesting for the time being'), nl,
+        write('You are in your bedroom looking out of the window at the arcade across the street.'), nl,
+        write('Ever since you have went there yesterday with your friends, qindagle (friend) hasnt answered his phone.'),nl,
+        write('You are pretty suspicious that he might be still inside the arcade, maybe even against his will, kidnapped.'),nl,
+        write('You have to find him.'),nl,
         write('You can go down to get to the street, or spend your day here'), nl,
         write('STARING at a hole in the wall.'), nl.
 
@@ -512,8 +534,7 @@ describe(street) :-
         looked_into_bus(Times),
         Times < 1,
         write('The street you walked along side of for every school day, on the other side'), nl,
-        write('(w) there is a newly opened Arcade, which you planned to meet up with your'), nl,
-        write('friends in.'), nl,
+        write('(w) there is the newly opened Arcade you have went to yesterday, qindagle HAS to be in there.'), nl,
         write('To the south you see a strange little ominous blue bus with one window creaked down slightly'), nl,
         write('Maybe its worth investigating?'), nl.
 
@@ -521,30 +542,32 @@ describe(street) :-
         looked_into_bus(Times),
         Times >= 1,
         write('The street you walked along side of for every school day, on the other side'), nl,
-        write('(w) there is a newly opened Arcade, which you planned to meet up with your'), nl,
-        write('friends in.'), nl,
+        write('(w) there is the newly opened Arcade you have went to yesterday, qindagle HAS to be in there.'), nl,
         write('To the south you see the strange little ominous blue bus with the weird guy inside of it'), nl,
         write('Maybe he would be helpful later on.'), nl.
 
 describe(arcade_entrance) :-
         write('You stand at the entrance of the arcade, RGB lights shimmer everywhere.'), nl,
-        write('You see a sign "Game Room" that is pointing on a room filled with various arcade games'), nl,
+        write('You see a sign "Game Room" that is pointing to the north on a room filled with various arcade games'), nl,
         write('West of you is a checkout counter.'), nl.
 
-/*describe(checkout) :-
-        write('The checkout has all kind of winables like plastic vampire teeth and such'), nl,
-        write(''), nl.*/
+describe(game_room) :-
+        getting_da_bag_quest(Bool),
+        Bool = 0,
+        write('The so called Game Room features many games, like a boxing machine'), nl,
+        write('a face-off dance battle game, arcade machine, whack a mole and many more games'),!.
 
 describe(game_room) :-
-        write('The so called Game Room features many games, like a boxing machine'), nl,
-        write('a face-off dance battle game, arcade machine, whack a mole and many more games'), nl.
+        getting_da_bag_quest(Bool),
+        Bool = 1,
+        write('The Game Room has games i might be able to expoit to get coins.'),nl,
+        write('I need to try searching (search(GAME)) some of them.'),nl,
+        write('I should try the games boxing_machine, face_off, arcade and whack_a_mole.'),!.
 
-describe(cave) :-
-        alive(spider),
-        at(ruby, in_hand),
-        write('The spider sees you with the ruby and attacks!!!'), nl,
-        write('    ...it is over in seconds....'), nl,
-        die.
+describe(game_room) :- 
+        getting_da_bag_quest(Bool),
+        Bool > 1,
+        write('At the game room again, i think i took enough coins').
 
 describe(checkout) :-
         employee_is_boogy_bombed(Bool),
@@ -563,13 +586,15 @@ describe(checkout2) :-
         write('really stick the vampire teeth, that have been exposed to all this filth, into their mouths'),nl,
         write('Anyway, back to your original plan, finding the secret held behind the employees door.'),!.
 
-describe(cave) :-
-        write('Yecch!  There is a giant spider here, twitching.'), nl.
-
-describe(spider) :-
-        alive(spider),
-        write('You are on top of a giant spider, standing in a rough'), nl,
-        write('mat of coarse hair.  The smell is awful.'), nl.
+describe(emp_room) :-
+        write('You barge in the employees room, you eyes adjust to the darkness of the room. The only light'), nl,
+        write('that dimmly illuminated the room is from the boogie bomb you threw a second ago. Its him.'), nl,
+        write('You have found your missing friend! Roped to a what you think is a chair, you hastely free him'), nl,
+        write('and take the mouth cover off... but... he doesnt seem too happy about it?'),nl,
+        write('He explains to you that you have misunderstood the situation and that you should leave'),nl,
+        write('He guides you out of the arcade, shakes your hand and goes back into the employee room.'), nl,
+        write('You think you are done for today...'),
+        die.
 
 describe(battle_bus) :-
         write('You stand before the tinted window of the bus, listening closely you hear breathing coming form within'), nl,
