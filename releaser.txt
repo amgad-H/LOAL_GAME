@@ -1,0 +1,2 @@
+New file created: 26.07.2022 13:14:29
+This file helps me push releases without tinkering with project folders
